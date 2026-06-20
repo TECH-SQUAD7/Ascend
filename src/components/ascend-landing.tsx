@@ -702,11 +702,14 @@ function ApplicationModal({
     return (
       <div className="py-8 text-center">
         <p className="font-hand text-6xl font-bold text-coral">
-          Application received.
+          {tier === "elite"
+            ? "Elite application received."
+            : "Application received."}
         </p>
         <p className="mx-auto mt-6 max-w-xl text-xl leading-9 text-muted">
-          We&apos;ve sent you the payment link/details. Please check your email
-          or WhatsApp.
+          {tier === "elite"
+            ? "Selected applicants will receive next steps."
+            : "Payment details will be sent shortly."}
         </p>
         {tier === "elite" ? (
           <p className="mx-auto mt-5 max-w-xl rounded-[1.25rem] border-2 border-ink bg-white p-5 text-lg leading-8 text-muted shadow-soft">
