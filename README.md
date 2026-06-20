@@ -1,6 +1,6 @@
 # Ascend
 
-Ascend is a premium, Vercel-ready Next.js landing site for founding access to the Ascend Founder Stream membership.
+Ascend is a premium, Vercel-ready Next.js landing site for Ascend Founder Stream applications and a free public waitlist.
 
 Ascend helps people turn skills, ideas, and existing businesses into revenue by choosing a path, packaging an offer, creating a 7-day revenue sprint, and moving toward practical customer action.
 
@@ -8,15 +8,12 @@ Ascend helps people turn skills, ideas, and existing businesses into revenue by 
 
 - Light/white anime-sketch inspired landing page
 - Free waitlist form with local success state
-- Founder Stream membership tiers
-- Manual payment modal for Bronze and Platinum
-- Elite application modal before payment
-- Member onboarding modal after manual payment
-- Success-state-only submissions
-- Placeholder config for future links and payments
-- Placeholder config for future form integrations
-- No backend database
-- No real payment gateway
+- Founder Stream tier selection for Bronze, Platinum, and Elite
+- One application form for all paid tiers
+- Google Apps Script webhook support for saving applications to Google Sheets
+- Loading, success, and error states for applications
+- No on-site payment collection
+- No Razorpay, Stripe, Supabase, login, dashboard, or Discord access yet
 - No income, job, salary, equity, or employment guarantees
 
 ## Tech Stack
@@ -28,55 +25,111 @@ Ascend helps people turn skills, ideas, and existing businesses into revenue by 
 
 ## Config Files
 
-Payment placeholders live in:
-
-```bash
-src/config/payments.ts
-```
-
-Social/contact/future form and payment links live in:
-
-```bash
-src/config/links.ts
-```
-
-Free waitlist integration placeholders live in:
+Application webhook config lives in:
 
 ```bash
 src/config/forms.ts
 ```
 
-Replace all `REPLACE_ME` values before launch.
+It currently contains:
+
+```ts
+export const formsConfig = {
+  applicationsEndpoint: "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL",
+};
+```
+
+Tier prices live in:
+
+```bash
+src/config/payments.ts
+```
+
+Social/contact placeholders live in:
+
+```bash
+src/config/links.ts
+```
+
+## Application Flow
+
+1. User chooses Bronze, Platinum, or Elite.
+2. User fills the application form.
+3. The site posts JSON to `formsConfig.applicationsEndpoint`.
+4. If the endpoint is still the placeholder, the site falls back to local success mode.
+5. Success message shown:
+
+```text
+Application received. We’ve sent you the payment link/details. Please check your email or WhatsApp.
+```
+
+Bronze and Platinum show:
+
+```text
+Payment link/details will be sent shortly.
+```
+
+Elite shows:
+
+```text
+Elite applications are reviewed before payment.
+```
+
+No payment is collected on-site.
+
+## Google Sheets Setup
+
+1. Create a Google Sheet named `Ascend Applications`.
+2. Add these columns:
+
+```text
+Timestamp, Full Name, Email, WhatsApp, Selected Tier, User Type, Goal Type, Skills, Current Stage, Biggest Challenge, Revenue Goal, Country, Notes, Source, Page URL
+```
+
+3. In the Sheet, open `Extensions > Apps Script`.
+4. Create a Google Apps Script webhook that accepts POST JSON and appends a row to the sheet.
+5. Deploy the script as a Web App.
+6. Copy the Web App URL.
+7. Paste it into:
+
+```bash
+src/config/forms.ts
+```
+
+Example:
+
+```ts
+export const formsConfig = {
+  applicationsEndpoint: "https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec",
+};
+```
+
+The application payload includes:
+
+- timestamp
+- fullName
+- email
+- whatsapp
+- selectedTier
+- userType
+- goalType
+- skills
+- currentStage
+- biggestChallenge
+- revenueGoal
+- country
+- notes
+- source: `ascend-landing`
+- pageUrl
 
 ## Free Waitlist
 
 The free waitlist is separate from Founder Stream.
 
 - Free Waitlist: anyone can join for early updates, product access, and Income Path Finder updates.
-- Founder Stream: paid founding membership with extra resources, Discord access, and support.
+- Founder Stream: paid founding membership application flow for Bronze, Platinum, and Elite.
 
-Right now, the free waitlist form uses `mode: "local-success"` from `src/config/forms.ts`. Submitting the form only shows a polished success state in the browser. It does not send data anywhere yet.
-
-## Connecting Formspree Later
-
-1. Create a Formspree form.
-2. Copy the endpoint URL.
-3. Replace `formspreeEndpoint` in `src/config/forms.ts`.
-4. Update the `submitWaitlist` handler in `src/components/ascend-landing.tsx` to `fetch(formsConfig.formspreeEndpoint, ...)`.
-5. Keep the current success message after Formspree returns a successful response.
-
-Google Sheets or Supabase can be connected later through the TODO comments in the same submit handler.
-
-## Founder Stream Payments
-
-Founder Stream payment still works manually:
-
-- Bronze and Platinum buttons open a manual payment modal.
-- The modal shows placeholder UPI/QR instructions from `src/config/payments.ts`.
-- The “I've paid” button opens the member onboarding modal.
-- Elite still opens an application form first, before payment.
-
-No real payment gateway is connected yet.
+Right now, the free waitlist form shows a local success state only. It does not send data anywhere yet.
 
 ## Local Development
 
@@ -123,15 +176,7 @@ npm run start
 1. Push this project to GitHub.
 2. Import the repository into Vercel.
 3. No environment variables are required for the current frontend-only build.
-4. Replace placeholders in `src/config/payments.ts` and `src/config/links.ts`.
-5. Set the production domain to `ascend.crevu.in`.
-6. Deploy.
-
-## Future Integration TODOs
-
-- Connect Bronze/Platinum payment flow to Razorpay, Stripe, or verified payment links.
-- Connect free waitlist submissions to Formspree, Google Sheets, or Supabase.
-- Connect onboarding submissions to Google Sheets, Formspree, Airtable, or a database.
-- Connect Elite applications to Google Sheets, Formspree, Airtable, or a CRM.
-- Replace the QR placeholder image at `public/payment-qr-placeholder.png`.
-- Replace placeholder Discord/social/contact links.
+4. Replace `applicationsEndpoint` in `src/config/forms.ts`.
+5. Replace public links in `src/config/links.ts`.
+6. Set the production domain to `ascend.crevu.in`.
+7. Deploy.

@@ -159,6 +159,14 @@ a:hover {
   color: white;
 }
 
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-nav:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
 .btn-secondary:hover {
   background: var(--sky);
   color: var(--ink);

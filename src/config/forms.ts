@@ -1,5 +1,3 @@
 export const formsConfig = {
-  mode: "local-success",
-  formspreeEndpoint: "REPLACE_ME",
-  googleSheetsWebhook: "REPLACE_ME",
+  applicationsEndpoint: "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL",
 };

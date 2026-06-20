@@ -1,18 +1,13 @@
 "use client";
 
-import Image from "next/image";
 import { FormEvent, MouseEvent, ReactNode, useState } from "react";
 import { ascendPaths, faqs, membershipTiers } from "@/src/config/content";
 import { formsConfig } from "@/src/config/forms";
 import { linksConfig } from "@/src/config/links";
-import { paymentConfig } from "@/src/config/payments";
 
 type TierId = (typeof membershipTiers)[number]["id"];
-type ModalState =
-  | { type: "payment"; tier: Extract<TierId, "bronze" | "platinum"> }
-  | { type: "onboarding"; tier: Extract<TierId, "bronze" | "platinum"> }
-  | { type: "elite" }
-  | null;
+type ModalState = { type: "application"; tier: TierId } | null;
+type SubmitState = "idle" | "loading" | "success" | "error";
 
 const problemCards = [
   "You have skills but don't know what to sell.",
@@ -37,38 +32,107 @@ const howSteps = [
     copy: "An offer idea, pricing guidance, and a 7-day roadmap you can actually run.",
   },
   {
-    title: "Join Founder Stream",
-    copy: "Start executing alongside other founders, with feedback and tooling.",
+    title: "Apply for your tier",
+    copy: "Submit one application. Payment details are sent after review or routing.",
   },
 ];
 
-const tierLabel: Record<Extract<TierId, "bronze" | "platinum">, string> = {
-  bronze: "Bronze - Founder Stream",
-  platinum: "Platinum - Builder Stream",
-};
+const userTypes = [
+  "Student",
+  "Freelancer",
+  "Creator",
+  "Founder",
+  "Business Owner",
+  "Other",
+];
+
+const goalTypes = [
+  "Start a business",
+  "Start freelancing",
+  "Become a creator",
+  "Launch an agency",
+  "Grow existing business",
+  "Create income stream",
+];
 
 export function AscendLanding() {
   const [modal, setModal] = useState<ModalState>(null);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [applicationStatus, setApplicationStatus] =
+    useState<SubmitState>("idle");
+  const [applicationError, setApplicationError] = useState("");
   const [waitlistSuccess, setWaitlistSuccess] = useState(false);
 
   const closeModal = () => {
     setModal(null);
-    setSuccessMessage("");
-  };
-
-  const submitSuccess = (event: FormEvent<HTMLFormElement>, message: string) => {
-    event.preventDefault();
-    // TODO: Connect this form to Google Sheets, Formspree, or a database when backend collection is ready.
-    setSuccessMessage(message);
+    setApplicationStatus("idle");
+    setApplicationError("");
   };
 
   const submitWaitlist = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: Connect the free waitlist to Formspree using formsConfig.formspreeEndpoint.
-    // TODO: Or connect the free waitlist to Google Sheets using formsConfig.googleSheetsWebhook.
-    // TODO: Supabase can be added later if Ascend needs database-backed waitlist management.
+    // TODO: Connect the free waitlist to Formspree, Google Sheets, or Supabase later.
     setWaitlistSuccess(true);
+  };
+
+  const submitApplication = async (
+    event: FormEvent<HTMLFormElement>,
+    selectedTier: TierId,
+  ) => {
+    event.preventDefault();
+    setApplicationStatus("loading");
+    setApplicationError("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const tierData = membershipTiers.find((item) => item.id === selectedTier);
+    const payload = {
+      timestamp: new Date().toISOString(),
+      fullName: String(formData.get("fullName") || ""),
+      email: String(formData.get("email") || ""),
+      whatsapp: String(formData.get("whatsapp") || ""),
+      selectedTier: tierData?.name ?? selectedTier,
+      userType: String(formData.get("userType") || ""),
+      goalType: String(formData.get("goalType") || ""),
+      skills: String(formData.get("skills") || ""),
+      currentStage: String(formData.get("currentStage") || ""),
+      biggestChallenge: String(formData.get("biggestChallenge") || ""),
+      revenueGoal: String(formData.get("revenueGoal") || ""),
+      country: String(formData.get("country") || ""),
+      notes: String(formData.get("notes") || ""),
+      source: "ascend-landing",
+      pageUrl: window.location.href,
+    };
+
+    const endpoint = formsConfig.applicationsEndpoint?.trim();
+
+    if (!endpoint || endpoint === "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL") {
+      // TODO: Paste the deployed Google Apps Script Web App URL into src/config/forms.ts.
+      setApplicationStatus("success");
+      form.reset();
+      return;
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Application webhook failed.");
+      }
+
+      setApplicationStatus("success");
+      form.reset();
+    } catch {
+      setApplicationStatus("error");
+      setApplicationError(
+        "Something went wrong while sending your application. Please try again.",
+      );
+    }
   };
 
   return (
@@ -82,9 +146,9 @@ export function AscendLanding() {
         <SunDoodle />
         <Birds />
 
-        <div className="mx-auto flex max-w-5xl flex-col items-center pt-20 text-center">
+        <div className="relative z-10 mx-auto flex max-w-5xl flex-col items-center pt-20 text-center">
           <div className="rounded-full border border-ink bg-white/75 px-5 py-2 text-base text-ink shadow-soft">
-            ✦ Free waitlist and Founder Stream are open
+            Founder Stream applications are open
           </div>
           <h1 className="mt-12 max-w-4xl text-balance font-hand text-[5.4rem] font-bold leading-[0.78] tracking-[-0.03em] text-ink sm:text-[7rem] lg:text-[8.6rem]">
             Turn your skills
@@ -97,7 +161,7 @@ export function AscendLanding() {
             Ascend helps you find the right income path, package what you can
             offer, and take the next action toward real revenue.
           </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+          <div className="relative z-20 mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
             <a href="#free-waitlist" className="btn-primary">
               Join Free Waitlist
             </a>
@@ -183,7 +247,7 @@ export function AscendLanding() {
         <SunMini />
         <SectionHeading
           title="Founder Stream."
-          subtitle="Three tiers. Limited seats. Founding access to Ascend while we build the MVP — with the support and tools to start now."
+          subtitle="Choose your tier, submit an application, and receive payment link/details after submission."
         />
         <div className="mx-auto mt-20 grid max-w-7xl gap-9 lg:grid-cols-3">
           {membershipTiers.map((tier) => (
@@ -209,6 +273,11 @@ export function AscendLanding() {
                     <span className="tag-pill bg-peach">Application first</span>
                   ) : null}
                 </div>
+                <p className="mt-5 text-lg leading-8 text-muted">
+                  {tier.id === "elite"
+                    ? "Elite applications are reviewed before payment."
+                    : "Payment link/details will be sent shortly after application."}
+                </p>
               </div>
 
               <ul className="mt-8 grid flex-1 gap-4 text-lg leading-7 text-ink">
@@ -222,22 +291,18 @@ export function AscendLanding() {
 
               <button
                 type="button"
-                onClick={() =>
-                  tier.id === "elite"
-                    ? setModal({ type: "elite" })
-                    : setModal({ type: "payment", tier: tier.id })
-                }
+                onClick={() => setModal({ type: "application", tier: tier.id })}
                 className="btn-primary mt-10 w-full"
               >
-                {tier.id === "elite" ? "Apply for Elite" : `Join ${tier.name}`}
+                Apply for {tier.name}
               </button>
             </TiltCard>
           ))}
         </div>
         <p className="mx-auto mt-12 max-w-4xl rounded-[1.35rem] border border-ink bg-white px-8 py-7 text-center text-lg leading-8 text-muted shadow-soft">
           Ascend does not guarantee income, jobs, salary, equity, or employment.
-          Founder Stream is founding access to early resources, support, and the
-          Ascend community.
+          No payment is collected on-site. Payment link/details are sent after
+          the application step.
         </p>
       </section>
 
@@ -263,7 +328,7 @@ export function AscendLanding() {
               <p className="mt-3 text-lg leading-8 text-muted">
                 The free waitlist is for updates and early product access.
                 Founder Stream is the paid founding membership with resources,
-                Discord access, and support.
+                application routing, and support.
               </p>
             </div>
           </div>
@@ -331,10 +396,6 @@ export function AscendLanding() {
                     ))}
                   </select>
                 </label>
-                <p className="text-sm leading-6 text-muted">
-                  Current mode: {formsConfig.mode}. This form shows a local
-                  success state until an integration is connected.
-                </p>
                 <button className="btn-primary w-full">Join Free Waitlist</button>
               </form>
             )}
@@ -371,7 +432,6 @@ export function AscendLanding() {
           <div className="flex flex-wrap gap-8 text-lg">
             <a href={linksConfig.instagram}>Instagram</a>
             <a href={linksConfig.x}>X</a>
-            <a href={linksConfig.discord}>Discord</a>
             <a href={`mailto:${linksConfig.contactEmail}`}>Contact</a>
           </div>
           <p className="text-muted">© 2026 Crevu Labs</p>
@@ -380,38 +440,12 @@ export function AscendLanding() {
 
       {modal ? (
         <Modal onClose={closeModal}>
-          {modal.type === "payment" ? (
-            <PaymentModal
-              tier={modal.tier}
-              onPaid={() => {
-                setSuccessMessage("");
-                setModal({ type: "onboarding", tier: modal.tier });
-              }}
-            />
-          ) : null}
-          {modal.type === "onboarding" ? (
-            <OnboardingModal
-              tier={modal.tier}
-              successMessage={successMessage}
-              onSubmit={(event) =>
-                submitSuccess(
-                  event,
-                  "You are marked as submitted. We will verify payment and send next steps manually.",
-                )
-              }
-            />
-          ) : null}
-          {modal.type === "elite" ? (
-            <EliteModal
-              successMessage={successMessage}
-              onSubmit={(event) =>
-                submitSuccess(
-                  event,
-                  "Elite application submitted. We will review fit before sharing payment instructions.",
-                )
-              }
-            />
-          ) : null}
+          <ApplicationModal
+            tier={modal.tier}
+            status={applicationStatus}
+            error={applicationError}
+            onSubmit={(event) => submitApplication(event, modal.tier)}
+          />
         </Modal>
       ) : null}
     </main>
@@ -435,7 +469,7 @@ function Nav() {
         </div>
         <div className="flex justify-end">
           <a href="#tiers" className="btn-nav">
-            Join
+            Apply
           </a>
         </div>
       </div>
@@ -506,7 +540,7 @@ function DoodleCloud({ className = "" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 190 70"
-      className={`doodle-float absolute text-muted ${className}`}
+      className={`doodle-float pointer-events-none absolute text-muted ${className}`}
       fill="none"
       aria-hidden="true"
     >
@@ -525,7 +559,7 @@ function SunDoodle() {
   return (
     <svg
       viewBox="0 0 80 80"
-      className="doodle-float absolute left-[63%] top-[18%] hidden h-16 w-16 text-coral sm:block"
+      className="doodle-float pointer-events-none absolute left-[63%] top-[18%] hidden h-16 w-16 text-coral sm:block"
       fill="none"
       aria-hidden="true"
     >
@@ -557,7 +591,7 @@ function SunMini() {
   return (
     <svg
       viewBox="0 0 80 80"
-      className="absolute left-1/2 top-0 h-16 w-16 -translate-x-1/2 -translate-y-1/2 text-coral"
+      className="pointer-events-none absolute left-1/2 top-0 h-16 w-16 -translate-x-1/2 -translate-y-1/2 text-coral"
       fill="none"
       aria-hidden="true"
     >
@@ -589,7 +623,7 @@ function Birds() {
   return (
     <svg
       viewBox="0 0 120 40"
-      className="absolute left-[20%] top-[34%] h-10 w-24 text-ink"
+      className="pointer-events-none absolute left-[20%] top-[34%] h-10 w-24 text-ink"
       fill="none"
       aria-hidden="true"
     >
@@ -604,7 +638,7 @@ function MountainLine() {
     <svg
       viewBox="0 0 1920 350"
       preserveAspectRatio="none"
-      className="absolute bottom-0 left-0 h-[360px] w-full text-muted"
+      className="pointer-events-none absolute -bottom-28 left-0 z-0 h-[360px] w-full text-muted"
       fill="none"
       aria-hidden="true"
     >
@@ -635,7 +669,7 @@ function Modal({
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-ink/35 p-4 backdrop-blur-sm">
-      <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[1.5rem] border-2 border-ink bg-paper p-6 shadow-ink sm:p-8">
+      <div className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[1.5rem] border-2 border-ink bg-paper p-6 shadow-ink sm:p-8">
         <div className="mb-5 flex justify-end">
           <button type="button" onClick={onClose} className="btn-secondary px-5 py-2">
             Close
@@ -647,150 +681,162 @@ function Modal({
   );
 }
 
-function PaymentModal({
+function ApplicationModal({
   tier,
-  onPaid,
+  status,
+  error,
+  onSubmit,
 }: {
-  tier: Extract<TierId, "bronze" | "platinum">;
-  onPaid: () => void;
+  tier: TierId;
+  status: SubmitState;
+  error: string;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }) {
-  return (
-    <div>
-      <p className="font-hand text-3xl font-bold text-coral">Manual payment</p>
-      <h2 className="mt-2 font-hand text-5xl font-bold">{tierLabel[tier]}</h2>
-      <p className="mt-4 text-lg leading-8 text-muted">
-        Manual payment is a temporary founding-access flow.
-      </p>
-      <div className="mt-7 grid gap-5 sm:grid-cols-[0.85fr_1.15fr]">
-        <div className="qr-placeholder" aria-label="QR image placeholder">
-          <Image
-            src={paymentConfig.qrImageUrl}
-            alt="Payment QR placeholder"
-            width={176}
-            height={176}
-            className="h-44 w-44 rounded-[1rem] border-2 border-ink bg-white object-cover"
-          />
-        </div>
-        <div className="rounded-[1.25rem] border-2 border-ink bg-white p-5 shadow-soft">
-          <p className="font-hand text-3xl font-bold text-coral">UPI details</p>
-          <p className="mt-3 font-bold">UPI ID: {paymentConfig.upiId}</p>
-          <p className="mt-2 font-bold">Name: {paymentConfig.upiName}</p>
-          <p className="mt-4 text-sm leading-6 text-muted">
-            Placeholder QR path: {paymentConfig.qrImageUrl}
+  const tierData = membershipTiers.find((item) => item.id === tier);
+
+  if (!tierData) {
+    return null;
+  }
+
+  if (status === "success") {
+    return (
+      <div className="py-8 text-center">
+        <p className="font-hand text-6xl font-bold text-coral">
+          Application received.
+        </p>
+        <p className="mx-auto mt-6 max-w-xl text-xl leading-9 text-muted">
+          We&apos;ve sent you the payment link/details. Please check your email
+          or WhatsApp.
+        </p>
+        {tier === "elite" ? (
+          <p className="mx-auto mt-5 max-w-xl rounded-[1.25rem] border-2 border-ink bg-white p-5 text-lg leading-8 text-muted shadow-soft">
+            Elite applications are reviewed before payment.
           </p>
-          <p className="mt-4 text-sm leading-6 text-muted">
-            Pay manually, save your screenshot, then continue to onboarding.
+        ) : (
+          <p className="mx-auto mt-5 max-w-xl rounded-[1.25rem] border-2 border-ink bg-white p-5 text-lg leading-8 text-muted shadow-soft">
+            Payment link/details will be sent shortly.
           </p>
-          {/* TODO: Replace manual payment with Razorpay, Stripe, or verified payment links. */}
-          <button type="button" onClick={onPaid} className="btn-primary mt-5">
-            I&apos;ve paid
-          </button>
-        </div>
+        )}
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-function OnboardingModal({
-  tier,
-  successMessage,
-  onSubmit,
-}: {
-  tier: Extract<TierId, "bronze" | "platinum">;
-  successMessage: string;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
   return (
     <div>
-      <p className="font-hand text-3xl font-bold text-coral">Member onboarding</p>
-      <h2 className="mt-2 font-hand text-5xl font-bold">{tierLabel[tier]}</h2>
-      <FormShell
-        fields={[
-          "Name",
-          "Email",
-          "WhatsApp",
-          "Chosen path",
-          "Skill",
-          "Current stage",
-          "Biggest blocker",
-          "Discord username",
-          "Payment screenshot placeholder",
-        ]}
-        buttonLabel="Submit onboarding"
-        onSubmit={onSubmit}
-      />
-      {successMessage ? <SuccessNotice message={successMessage} /> : null}
-    </div>
-  );
-}
-
-function EliteModal({
-  successMessage,
-  onSubmit,
-}: {
-  successMessage: string;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}) {
-  return (
-    <div>
-      <p className="font-hand text-3xl font-bold text-coral">Elite application</p>
+      <p className="font-hand text-3xl font-bold text-coral">
+        Founder Stream application
+      </p>
       <h2 className="mt-2 font-hand text-5xl font-bold">
-        Apply for Ascend Circle
+        {tierData.name} — {tierData.price}
       </h2>
-      <FormShell
-        fields={[
-          "Name",
-          "Email",
-          "WhatsApp",
-          "Current project/business",
-          "Goal",
-          "Why they want Elite",
-          "Expected support",
-        ]}
-        buttonLabel="Submit application"
-        multiline
-        onSubmit={onSubmit}
-      />
-      {successMessage ? <SuccessNotice message={successMessage} /> : null}
+      <p className="mt-4 text-lg leading-8 text-muted">
+        {tier === "elite"
+          ? "Elite applications are reviewed before payment."
+          : "Payment link/details will be sent shortly."}
+      </p>
+
+      <form onSubmit={onSubmit} className="mt-7 grid gap-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput label="Full name" name="fullName" />
+          <FormInput label="Email" name="email" type="email" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput label="WhatsApp number" name="whatsapp" />
+          <label className="grid gap-2 text-sm font-bold text-muted">
+            Selected tier
+            <input
+              readOnly
+              name="selectedTier"
+              value={tierData.name}
+              className="form-field bg-sky-soft"
+            />
+          </label>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormSelect label="User type" name="userType" options={userTypes} />
+          <FormSelect label="Goal type" name="goalType" options={goalTypes} />
+        </div>
+        <FormTextarea label="Skills" name="skills" />
+        <FormInput label="Current stage" name="currentStage" />
+        <FormTextarea label="Biggest challenge" name="biggestChallenge" />
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormInput label="Revenue goal" name="revenueGoal" />
+          <FormInput label="Country" name="country" />
+        </div>
+        <FormTextarea label="Notes" name="notes" required={false} />
+
+        {error ? (
+          <div className="rounded-[1.25rem] border-2 border-ink bg-peach p-4 text-sm font-bold text-ink">
+            {error}
+          </div>
+        ) : null}
+
+        <button className="btn-primary mt-2 w-full" disabled={status === "loading"}>
+          {status === "loading" ? "Submitting..." : "Submit application"}
+        </button>
+      </form>
     </div>
   );
 }
 
-function FormShell({
-  fields,
-  buttonLabel,
-  multiline,
-  onSubmit,
+function FormInput({
+  label,
+  name,
+  type = "text",
 }: {
-  fields: string[];
-  buttonLabel: string;
-  multiline?: boolean;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  label: string;
+  name: string;
+  type?: string;
 }) {
   return (
-    <form onSubmit={onSubmit} className="mt-6 grid gap-4">
-      {fields.map((field) => (
-        <label key={field} className="grid gap-2 text-sm font-bold text-muted">
-          {field}
-          {multiline || field.length > 18 ? (
-            <textarea
-              required
-              rows={3}
-              className="rounded-[1rem] border-2 border-ink bg-white px-4 py-3 outline-none transition focus:ring-4 focus:ring-peach"
-              placeholder={field}
-            />
-          ) : (
-            <input
-              required
-              className="h-12 rounded-[1rem] border-2 border-ink bg-white px-4 outline-none transition focus:ring-4 focus:ring-peach"
-              placeholder={field}
-            />
-          )}
-        </label>
-      ))}
-      {/* TODO: Connect submissions to Google Sheets, Formspree, Airtable, or a backend. */}
-      <button className="btn-primary mt-2">{buttonLabel}</button>
-    </form>
+    <label className="grid gap-2 text-sm font-bold text-muted">
+      {label}
+      <input required name={name} type={type} className="form-field" />
+    </label>
+  );
+}
+
+function FormSelect({
+  label,
+  name,
+  options,
+}: {
+  label: string;
+  name: string;
+  options: string[];
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-muted">
+      {label}
+      <select required name={name} className="form-field">
+        <option value="">Choose one</option>
+        {options.map((option) => (
+          <option key={option}>{option}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function FormTextarea({
+  label,
+  name,
+  required = true,
+}: {
+  label: string;
+  name: string;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-bold text-muted">
+      {label}
+      <textarea
+        required={required}
+        name={name}
+        rows={3}
+        className="form-field min-h-24 py-3"
+      />
+    </label>
   );
 }
 
@@ -829,13 +875,5 @@ function WaitlistTextarea({ label, name }: { label: string; name: string }) {
         placeholder={label}
       />
     </label>
-  );
-}
-
-function SuccessNotice({ message }: { message: string }) {
-  return (
-    <div className="mt-5 rounded-[1.25rem] border-2 border-ink bg-sky-soft p-4 text-sm font-bold leading-6 text-ink">
-      {message}
-    </div>
   );
 }
