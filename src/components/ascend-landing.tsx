@@ -139,7 +139,7 @@ export function AscendLanding() {
     <main className="bg-paper text-ink">
       <Nav />
 
-      <section className="hero-scene relative isolate min-h-[960px] overflow-hidden px-5 pt-24 sm:px-8 lg:px-10">
+      <section className="hero-scene relative isolate min-h-[960px] overflow-hidden px-5 pt-10 sm:px-8 lg:px-10">
         <DoodleCloud className="left-[1.2%] top-[10%] w-32 sm:w-44" />
         <DoodleCloud className="right-[4%] top-[15%] hidden w-48 sm:block" />
         <DoodleCloud className="left-[32%] top-[22%] hidden w-28 opacity-70 lg:block" />
@@ -454,7 +454,7 @@ export function AscendLanding() {
 
 function Nav() {
   return (
-    <nav className="fixed left-0 right-0 top-0 z-40 bg-paper/96 px-5 py-6 backdrop-blur sm:px-8 lg:px-12">
+    <nav className="bg-paper px-5 py-6 sm:px-8 lg:px-12">
       <div className="mx-auto grid max-w-[1800px] grid-cols-[1fr_auto_1fr] items-center">
         <a href="#" className="flex items-baseline gap-2">
           <span className="font-hand text-4xl font-bold leading-none">Ascend</span>
