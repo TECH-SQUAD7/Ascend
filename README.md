@@ -7,7 +7,7 @@ Ascend helps people turn skills, ideas, and existing businesses into revenue by 
 ## Current Scope
 
 - Light/white anime-sketch inspired landing page
-- Free waitlist form connected to the shared Google Apps Script webhook
+- Free waitlist form connected through a same-origin `/api/forms` route
 - Founder Stream tier selection for Bronze, Platinum, and Elite
 - One application form for all paid tiers
 - Google Apps Script webhook support for saving waitlist and application rows to separate Google Sheet tabs
@@ -39,7 +39,7 @@ export const formsConfig = {
 };
 ```
 
-The current project points `applicationsEndpoint` to the live Google Apps Script Web App URL. The same endpoint handles both free waitlist and Founder Stream application submissions. The payload includes `formType` so Google Apps Script can route rows to the correct tab.
+The current project points `applicationsEndpoint` to the live Google Apps Script Web App URL. The browser posts both forms to `/api/forms`, and that route forwards JSON to Google Apps Script with `Content-Type: application/json`. This avoids browser CORS/preflight issues with Apps Script while keeping the same Google Sheets workflow. The payload includes `formType` so Google Apps Script can route rows to the correct tab.
 
 Tier prices live in:
 
@@ -60,7 +60,7 @@ The free waitlist is separate from Founder Stream.
 - Free Waitlist: anyone can join for early updates, product access, and Income Path Finder updates.
 - Founder Stream: paid founding membership application flow for Bronze, Platinum, and Elite.
 
-The free waitlist form posts JSON to `formsConfig.applicationsEndpoint` with:
+The free waitlist form posts JSON to `/api/forms` with:
 
 ```ts
 {
@@ -80,15 +80,16 @@ The Apps Script should append those rows to a `Waitlist` tab with these columns:
 Timestamp, Full Name, Email, Selected Path/Interest, Source, Page URL
 ```
 
-If the endpoint is empty or still set to `REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL`, the site falls back to local success mode.
+The `/api/forms` route forwards the payload to `formsConfig.applicationsEndpoint`. If the endpoint is empty or still set to `REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL`, the route falls back to local success mode.
 
 ## Application Flow
 
 1. User chooses Bronze, Platinum, or Elite.
 2. User fills the application form.
-3. The site posts JSON to `formsConfig.applicationsEndpoint`.
-4. The payload includes `formType: "application"` so Apps Script can save it to the `Applications` tab.
-5. If the endpoint is still the placeholder, the site falls back to local success mode.
+3. The site posts JSON to `/api/forms`.
+4. The API route forwards the payload to `formsConfig.applicationsEndpoint`.
+5. The payload includes `formType: "application"` so Apps Script can save it to the `Applications` tab.
+6. If the endpoint is still the placeholder, the route falls back to local success mode.
 
 Bronze and Platinum success:
 

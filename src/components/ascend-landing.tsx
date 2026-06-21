@@ -2,7 +2,6 @@
 
 import { FormEvent, MouseEvent, ReactNode, useState } from "react";
 import { ascendPaths, faqs, membershipTiers } from "@/src/config/content";
-import { formsConfig } from "@/src/config/forms";
 import { linksConfig } from "@/src/config/links";
 
 type TierId = (typeof membershipTiers)[number]["id"];
@@ -86,17 +85,8 @@ export function AscendLanding() {
       pageUrl: window.location.href,
     };
 
-    const endpoint = formsConfig.applicationsEndpoint?.trim();
-
-    if (!endpoint || endpoint === "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL") {
-      // TODO: Paste the deployed Google Apps Script Web App URL into src/config/forms.ts.
-      setWaitlistStatus("success");
-      form.reset();
-      return;
-    }
-
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/forms", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -151,17 +141,8 @@ export function AscendLanding() {
       pageUrl: window.location.href,
     };
 
-    const endpoint = formsConfig.applicationsEndpoint?.trim();
-
-    if (!endpoint || endpoint === "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL") {
-      // TODO: Paste the deployed Google Apps Script Web App URL into src/config/forms.ts.
-      setApplicationStatus("success");
-      form.reset();
-      return;
-    }
-
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/forms", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
