@@ -60,7 +60,8 @@ export function AscendLanding() {
   const [applicationStatus, setApplicationStatus] =
     useState<SubmitState>("idle");
   const [applicationError, setApplicationError] = useState("");
-  const [waitlistSuccess, setWaitlistSuccess] = useState(false);
+  const [waitlistStatus, setWaitlistStatus] = useState<SubmitState>("idle");
+  const [waitlistError, setWaitlistError] = useState("");
 
   const closeModal = () => {
     setModal(null);
@@ -68,10 +69,56 @@ export function AscendLanding() {
     setApplicationError("");
   };
 
-  const submitWaitlist = (event: FormEvent<HTMLFormElement>) => {
+  const submitWaitlist = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // TODO: Connect the free waitlist to Formspree, Google Sheets, or Supabase later.
-    setWaitlistSuccess(true);
+    setWaitlistStatus("loading");
+    setWaitlistError("");
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const payload = {
+      formType: "waitlist",
+      timestamp: new Date().toISOString(),
+      fullName: String(formData.get("fullName") || ""),
+      email: String(formData.get("email") || ""),
+      selectedPathInterest: String(formData.get("selectedPathInterest") || ""),
+      source: "ascend-landing",
+      pageUrl: window.location.href,
+    };
+
+    const endpoint = formsConfig.applicationsEndpoint?.trim();
+
+    if (!endpoint || endpoint === "REPLACE_WITH_GOOGLE_APPS_SCRIPT_WEB_APP_URL") {
+      // TODO: Paste the deployed Google Apps Script Web App URL into src/config/forms.ts.
+      setWaitlistStatus("success");
+      form.reset();
+      return;
+    }
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json().catch(() => null)) as {
+        success?: boolean;
+      } | null;
+
+      if (!response.ok || result?.success === false) {
+        throw new Error("Waitlist webhook failed.");
+      }
+
+      setWaitlistStatus("success");
+      form.reset();
+    } catch {
+      setWaitlistStatus("error");
+      setWaitlistError(
+        "Something went wrong while joining the waitlist. Please try again.",
+      );
+    }
   };
 
   const submitApplication = async (
@@ -86,6 +133,7 @@ export function AscendLanding() {
     const formData = new FormData(form);
     const tierData = membershipTiers.find((item) => item.id === selectedTier);
     const payload = {
+      formType: "application",
       timestamp: new Date().toISOString(),
       fullName: String(formData.get("fullName") || ""),
       email: String(formData.get("email") || ""),
@@ -120,8 +168,11 @@ export function AscendLanding() {
         },
         body: JSON.stringify(payload),
       });
+      const result = (await response.json().catch(() => null)) as {
+        success?: boolean;
+      } | null;
 
-      if (!response.ok) {
+      if (!response.ok || result?.success === false) {
         throw new Error("Application webhook failed.");
       }
 
@@ -323,7 +374,7 @@ export function AscendLanding() {
             </p>
             <div className="mt-8 rounded-[1.35rem] border-2 border-ink bg-white/85 p-6 shadow-ink">
               <p className="font-hand text-3xl font-bold">
-                Free Waitlist ≠ Founder Stream
+                Free Waitlist != Founder Stream
               </p>
               <p className="mt-3 text-lg leading-8 text-muted">
                 The free waitlist is for updates and early product access.
@@ -334,7 +385,7 @@ export function AscendLanding() {
           </div>
 
           <TiltCard className="ink-card bg-white p-7 sm:p-9">
-            {waitlistSuccess ? (
+            {waitlistStatus === "success" ? (
               <div className="grid min-h-[34rem] place-items-center text-center">
                 <div>
                   <p className="font-hand text-6xl font-bold text-coral">
@@ -346,7 +397,7 @@ export function AscendLanding() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => setWaitlistSuccess(false)}
+                    onClick={() => setWaitlistStatus("idle")}
                     className="btn-secondary mt-8"
                   >
                     Add another person
@@ -359,10 +410,9 @@ export function AscendLanding() {
                   <WaitlistInput label="Full name" name="fullName" />
                   <WaitlistInput label="Email" name="email" type="email" />
                 </div>
-                <WaitlistInput label="WhatsApp number" name="whatsapp" />
                 <label className="grid gap-2 text-sm font-bold text-muted">
-                  Interested path
-                  <select required className="form-field">
+                  Selected Path/Interest
+                  <select required name="selectedPathInterest" className="form-field">
                     <option value="">Choose a path</option>
                     {[
                       "Start a Business",
@@ -377,26 +427,16 @@ export function AscendLanding() {
                     ))}
                   </select>
                 </label>
-                <WaitlistTextarea
-                  label="Skill / idea / business description"
-                  name="description"
-                />
-                <WaitlistTextarea label="Biggest blocker" name="blocker" />
-                <label className="grid gap-2 text-sm font-bold text-muted">
-                  Future willingness to pay
-                  <select required className="form-field">
-                    <option value="">Choose one</option>
-                    {[
-                      "₹0 for now",
-                      "₹150 Founder Stream",
-                      "₹1,500 Builder Stream",
-                      "Not sure yet",
-                    ].map((option) => (
-                      <option key={option}>{option}</option>
-                    ))}
-                  </select>
-                </label>
-                <button className="btn-primary w-full">Join Free Waitlist</button>
+                {waitlistStatus === "error" ? (
+                  <div className="rounded-[1.25rem] border-2 border-ink bg-peach p-4 text-sm font-bold text-ink">
+                    {waitlistError}
+                  </div>
+                ) : null}
+                <button className="btn-primary w-full" disabled={waitlistStatus === "loading"}>
+                  {waitlistStatus === "loading"
+                    ? "Joining..."
+                    : "Join Free Waitlist"}
+                </button>
               </form>
             )}
           </TiltCard>
@@ -730,7 +770,7 @@ function ApplicationModal({
         Founder Stream application
       </p>
       <h2 className="mt-2 font-hand text-5xl font-bold">
-        {tierData.name} — {tierData.price}
+        {tierData.name} - {tierData.price}
       </h2>
       <p className="mt-4 text-lg leading-8 text-muted">
         {tier === "elite"
@@ -860,21 +900,6 @@ function WaitlistInput({
         name={name}
         type={type}
         className="form-field"
-        placeholder={label}
-      />
-    </label>
-  );
-}
-
-function WaitlistTextarea({ label, name }: { label: string; name: string }) {
-  return (
-    <label className="grid gap-2 text-sm font-bold text-muted">
-      {label}
-      <textarea
-        required
-        name={name}
-        rows={4}
-        className="form-field min-h-28 py-3"
         placeholder={label}
       />
     </label>
