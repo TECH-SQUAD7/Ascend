@@ -1,5 +1,5 @@
-import { EchoLandingPage } from "@/src/components/echo/landing-page";
+import { AscendLanding } from "@/src/components/ascend-landing";
 
 export default function Home() {
-  return <EchoLandingPage />;
+  return <AscendLanding />;
 }

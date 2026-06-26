@@ -19,9 +19,9 @@ const caveat = Caveat({
 });
 
 export const metadata: Metadata = {
-  title: "ECHO - Turn Your Work Into Proof",
+  title: "Ascend — Turn Skills Into Revenue",
   description:
-    "ECHO is an AI proof-of-work platform for capturing evidence, extracting skills, tracking growth, and showcasing real impact.",
+    "Ascend is your all-in-one AI business companion for starting, growing, and monetizing income streams.",
 };
 
 export default function RootLayout({
